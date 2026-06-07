@@ -1,0 +1,15 @@
+# Copy this file to `config.yaml` and set the configuration items
+
+sync:
+  garmin:
+    authentication_domain: CN #  Global (default) | CN (Mainland China)
+    email: user@email.com
+    password: yourpassword
+# Copy this file to `config.yaml` and set the configuration items
+baseurl: "/running_page"
+
+sync:
+  garmin:
+    authentication_domain: CN
+    email: user@example.com
+    password: yourpassword
