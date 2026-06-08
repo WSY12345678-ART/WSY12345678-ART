@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>跑步数据分析 + AI 教练</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/openai@4.52.7/dist/openai.umd.min.js"></script>
+    <style>
+        body{max-width:1100px;margin:20px auto;padding:0 20px;font-family:Microsoft Yahei;}
+        a{margin-right:20px;text-decoration:none;color:#0066cc;}
+        .stat-box{display:flex;gap:20px;flex-wrap:wrap;margin:20px 0;}
+        .item{padding:15px 25px;background:#f8f9fa;border-radius:8px;border:1px solid #eee;}
+        canvas{margin:30px 0;}
+        .ai-box{margin-top:40px;padding:20px;background:#f0f7ff;border-radius:8px;}
+        #aiResult{margin-top:15px;line-height:1.8;white-space:pre-wrap;}
+        button{padding:8px 16px;background:#2383e2;color:#fff;border:none;border-radius:4px;cursor:pointer;}
+        button:hover{background:#1969b8;}
+    </style>
+</head>
+<body>
+    <h1>跑步数据深度分析 & AI 训练建议</h1>
+    <div>
+        <a href="./">返回首页</a>
+        <a href="training-plan.html">训练计划</a>
+    </div>
+
+    <!-- 数据统计卡片 -->
+    <div class="stat-box">
+        <div class="item">总里程：<span id="totalKm">0</span> km</div>
+        <div class="item">总场次：<span id="totalRun">0</span> 次</div>
+        <div class="item">平均配速：<span id="avgPace">--</span></div>
+    </div>
+
+    <!-- 月度里程图表 -->
+    <canvas id="monthChart"></canvas>
+
+    <!-- AI 分析区域 -->
+    <div class="ai-box">
+        <h3>AI 跑步教练分析</h3>
+        <button id="aiBtn">生成数据解读 & 训练建议</button>
+        <div id="aiResult">请点击按钮开始分析...</div>
+    </div>
+
+    <script>
+        // ========== 此处替换为你自己的 GitHub PAT ==========
+        // ========= 此处替换为你自己的 GitHub PAT =========
+const MY_TOKEN = "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";
+// =================================================
+        // ==================================================
+
+        const openai = new OpenAI({
+            baseURL: "https://models.github.ai/inference",
+            apiKey: MY_TOKEN
+        });
+
+        let runData = [];
+
+        // 加载跑步数据
+        async function loadData() {
+            try {
+                const res = await fetch('./data/activities.json');
+                runData = await res.json();
+                renderStat();
+                renderChart();
+            } catch (e) {
+                document.getElementById("aiResult").innerText = "数据加载失败，请检查文件或强制刷新页面";
+                console.error(e);
+            }
+        }
+
+        // 计算并展示基础统计
+        function renderStat() {
+            let totalDist = 0;
+            let totalTime = 0;
+            runData.forEach(item => {
+                totalDist += item.distance;
+                totalTime += item.duration;
+            });
+
+            const totalKm = (totalDist / 1000).toFixed(1);
+            const totalRun = runData.length;
+            // 计算平均配速 秒/公里
+            const avgSecPerKm = totalTime / (totalDist / 1000);
+            const min = Math.floor(avgSecPerKm / 60);
+            const sec = Math.floor(avgSecPerKm % 60);
+            const avgPace = `${min}'${sec}"`;
+
+            document.getElementById("totalKm").innerText = totalKm;
+            document.getElementById("totalRun").innerText = totalRun;
+            document.getElementById("avgPace").innerText = avgPace;
+        }
+
+        // 绘制月度里程柱状图
+        function renderChart() {
+            const monthData = {};
+            runData.forEach(item => {
+                const d = new Date(item.start_time);
+                const key = `${d.getFullYear()}-${d.getMonth() + 1}`;
+                monthData[key] = (monthData[key] || 0) + item.distance / 1000;
+            });
+
+            const labels = Object.keys(monthData).sort();
+            const values = labels.map(k => monthData[k].toFixed(1));
+
+            new Chart(document.getElementById("monthChart"), {
+                type: "bar",
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: "月度里程(km)",
+                        data: values,
+                        backgroundColor: "#409eff"
+                    }]
+                }
+            });
+        }
+
+        // 调用 AI 生成分析建议
+        document.getElementById("aiBtn").addEventListener("click", async () => {
+            const resDom = document.getElementById("aiResult");
+            resDom.innerText = "AI 分析中，请稍等...";
+            try {
+                const prompt = `请作为专业跑步教练，分析以下跑步数据，包含：整体评价、能力判断、优缺点、下周训练安排、注意事项。数据：${JSON.stringify(runData)}`;
+                const chatRes = await openai.chat.completions.create({
+                    model: "openai/gpt-4o-mini",
+                    messages: [{ role: "user", content: prompt }]
+                });
+                resDom.innerText = chatRes.choices[0].message.content;
+            } catch (err) {
+                resDom.innerText = "调用AI失败，请检查令牌是否正确、额度是否用尽";
+                console.error(err);
+            }
+        });
+
+        // 页面加载自动执行
+        loadData();
+    </script>
+</body>
+</html>
